@@ -2,13 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { BRDRequirements } from '@/lib/types';
 
+// Type assertion for ShareLink model (available after Prisma client generation)
+const prismaWithShareLink = prisma as typeof prisma & {
+  shareLink: {
+    findUnique: (args: { where: { token: string }; include?: { analysis: boolean } }) => Promise<any>;
+  };
+};
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ token: string }> }
 ) {
   try {
     const params = await context.params;
-    const shareLink = await prisma.shareLink.findUnique({
+    const shareLink = await prismaWithShareLink.shareLink.findUnique({
       where: { token: params.token },
       include: { analysis: true },
     });
