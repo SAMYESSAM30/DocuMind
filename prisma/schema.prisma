@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email          String    @unique
+  password       String?   // Optional for OAuth users
+  name           String?
+  plan           PlanType  @default(FREE)
+  aiCallsUsed    Int       @default(0)
+  aiCallsLimit   Int       @default(5) // Free plan: 5 calls/month
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  analyses       Analysis[]
+  sessions       Session[]
+  accounts       Account[] // OAuth accounts
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Analysis {
+  id            String   @id @default(cuid())
+  userId        String
+  documentName  String
+  documentText  String   // SQLite supports large text without @db.Text
+  requirements  String   // JSON string of BRDRequirements
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareLink     ShareLink?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ShareLink {
+  id            String   @id @default(cuid())
+  analysisId    String   @unique
+  token         String   @unique
+  isPublic      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime?
+  analysis      Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([analysisId])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String   // google, github, apple
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
